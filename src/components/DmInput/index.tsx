@@ -524,6 +524,7 @@ export default function DmInput({
   }, [serializeContent, detectAutocomplete])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.nativeEvent.isComposing) return
     if (mentionQuery !== null && mentionResults.length > 0) {
       if (e.key === 'ArrowUp') {
         e.preventDefault()
@@ -665,6 +666,12 @@ export default function DmInput({
       if (files.length > 0) {
         e.preventDefault()
         uploadFiles(files)
+        return
+      }
+      const text = e.clipboardData.getData('text/plain')
+      if (text) {
+        e.preventDefault()
+        document.execCommand('insertText', false, text)
       }
     },
     [uploadFiles]
