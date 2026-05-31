@@ -58,6 +58,7 @@ type Props = {
   close: () => void
   requestClose?: () => void
   onOpenDrafts?: () => void
+  onParentClick?: (parentEvent: Event) => void
   openFrom?: string[]
   highlightedText?: string
   initialDraft?: TPostDraftUnsigned
@@ -70,6 +71,7 @@ const PostContent = forwardRef<TPostContentHandle, Props>(function PostContent(
     close,
     requestClose,
     onOpenDrafts,
+    onParentClick,
     openFrom,
     highlightedText,
     initialDraft
@@ -108,9 +110,7 @@ const PostContent = forwardRef<TPostContentHandle, Props>(function PostContent(
   >([])
   const parentEvent = useMemo(
     () =>
-      initialParentStuff && typeof initialParentStuff !== 'string'
-        ? initialParentStuff
-        : undefined,
+      initialParentStuff && typeof initialParentStuff !== 'string' ? initialParentStuff : undefined,
     [initialParentStuff]
   )
   const [showMoreOptions, setShowMoreOptions] = useState(false)
@@ -118,9 +118,7 @@ const PostContent = forwardRef<TPostContentHandle, Props>(function PostContent(
   const [mentions, setMentions] = useState<string[]>(initialDraft?.mentions ?? [])
   const [isNsfw, setIsNsfw] = useState(initialDraft?.isNsfw ?? false)
   const [isPoll, setIsPoll] = useState(initialDraft?.isPoll ?? false)
-  const [isProtectedEvent, setIsProtectedEvent] = useState(
-    initialDraft?.isProtectedEvent ?? false
-  )
+  const [isProtectedEvent, setIsProtectedEvent] = useState(initialDraft?.isProtectedEvent ?? false)
   const [additionalRelayUrls, setAdditionalRelayUrls] = useState<string[]>(
     initialDraft?.additionalRelayUrls ?? []
   )
@@ -149,8 +147,7 @@ const PostContent = forwardRef<TPostContentHandle, Props>(function PostContent(
     setIsProtectedEvent(checked)
   }, [])
 
-  const hasContent =
-    !!text.trim() || (isPoll && pollCreateData.options.some((o) => o.trim()))
+  const hasContent = !!text.trim() || (isPoll && pollCreateData.options.some((o) => o.trim()))
 
   const canPost = useMemo(() => {
     return (
@@ -175,8 +172,7 @@ const PostContent = forwardRef<TPostContentHandle, Props>(function PostContent(
     if (!pubkey) return undefined
     const tiptapJson = (textareaRef.current?.getJSON() as unknown) ?? null
     const parentEventObj = parentEvent
-    const parentCoord =
-      typeof initialParentStuff === 'string' ? initialParentStuff : undefined
+    const parentCoord = typeof initialParentStuff === 'string' ? initialParentStuff : undefined
     return {
       id: draftIdRef.current,
       pubkey,
@@ -410,41 +406,14 @@ const PostContent = forwardRef<TPostContentHandle, Props>(function PostContent(
 
   return (
     <div className="pb-2">
-      {uploadProgresses.length > 0 && (
-        <div className="space-y-2 px-5 pb-3 sm:px-6">
-          {uploadProgresses.map(({ file, progress, cancel }, index) => (
-            <div key={`${file.name}-${index}`} className="flex items-end gap-2">
-              <div className="min-w-0 flex-1">
-                <div className="mb-1 truncate text-xs text-muted-foreground">
-                  {file.name ?? t('Uploading...')}
-                </div>
-                <div className="h-0.5 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full bg-primary transition-[width] duration-200 ease-out"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  cancel?.()
-                  handleUploadEnd(file)
-                }}
-                className="text-muted-foreground hover:text-foreground"
-                title={t('Cancel')}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
       {parentEvent && (
         <>
-          <ParentEventPreview parentEvent={parentEvent} highlightedText={highlightedText} />
-          <div className="h-px bg-border" />
+          <ParentEventPreview
+            parentEvent={parentEvent}
+            highlightedText={highlightedText}
+            onClick={onParentClick ? () => onParentClick(parentEvent) : undefined}
+          />
+          <div className="bg-border h-px" />
         </>
       )}
 
@@ -458,9 +427,7 @@ const PostContent = forwardRef<TPostContentHandle, Props>(function PostContent(
         onUploadStart={handleUploadStart}
         onUploadProgress={handleUploadProgress}
         onUploadEnd={handleUploadEnd}
-        placeholder={
-          highlightedText ? t('Write your thoughts about this highlight...') : undefined
-        }
+        placeholder={highlightedText ? t('Write your thoughts about this highlight...') : undefined}
         topRightActions={
           <div className="flex items-center gap-1">
             <DraftsButton onClick={() => onOpenDrafts?.()} />
@@ -504,7 +471,7 @@ const PostContent = forwardRef<TPostContentHandle, Props>(function PostContent(
               className={
                 isProtectedEvent
                   ? 'h-9 gap-1.5 bg-emerald-500/15 px-2.5 text-sm font-normal text-emerald-600 hover:bg-emerald-500/20 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-400'
-                  : 'h-9 gap-1.5 px-2.5 text-sm font-normal text-muted-foreground hover:text-foreground'
+                  : 'text-muted-foreground hover:text-foreground h-9 gap-1.5 px-2.5 text-sm font-normal'
               }
               onClick={() => handleProtectedToggle(!isProtectedEvent)}
             >
@@ -516,7 +483,7 @@ const PostContent = forwardRef<TPostContentHandle, Props>(function PostContent(
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="size-7 text-muted-foreground hover:text-foreground"
+                  className="text-muted-foreground hover:text-foreground size-7"
                   title={t('Protected event hint')}
                 >
                   <CircleHelp className="size-4!" />
@@ -538,7 +505,39 @@ const PostContent = forwardRef<TPostContentHandle, Props>(function PostContent(
         </div>
       )}
 
-      <div className="h-px bg-border" />
+      <div className="bg-border h-px" />
+
+      {uploadProgresses.length > 0 && (
+        <div className="space-y-2 px-5.5 py-2 sm:px-7">
+          {uploadProgresses.map(({ file, progress, cancel }, index) => (
+            <div key={`${file.name}-${index}`} className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="text-muted-foreground mb-1 truncate text-xs">
+                  {file.name ?? t('Uploading...')}
+                </div>
+                <div className="bg-muted h-0.5 w-full overflow-hidden rounded-full">
+                  <div
+                    className="bg-primary h-full transition-[width] duration-200 ease-out"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  cancel?.()
+                  handleUploadEnd(file)
+                }}
+                className="text-muted-foreground hover:text-foreground"
+                title={t('Cancel')}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-2 px-3 py-2 sm:px-4">
         <div className="flex items-center gap-0.5">
           <Uploader
@@ -633,7 +632,7 @@ const PostContent = forwardRef<TPostContentHandle, Props>(function PostContent(
 
       {showMoreOptions && (
         <>
-          <div className="h-px bg-border" />
+          <div className="bg-border h-px" />
           <div className="px-5 py-3 sm:px-6">
             <PostOptions
               posting={false}
